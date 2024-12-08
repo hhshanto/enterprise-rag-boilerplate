@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+PyPDF2
+pdfplumber
+transformers
+pinecone-client
+weaviate-client
+qdrant-client
+prometheus-client
