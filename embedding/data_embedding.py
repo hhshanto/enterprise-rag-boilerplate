@@ -58,7 +58,8 @@ class DataEmbedding:
             ids = []
             
             for j, item in enumerate(batch):
-                documents.append(item['text'])
+                # The item is the text directly, no need to access a 'text' field
+                documents.append(str(item))  # Convert to string to ensure compatibility
                 metadatas.append({"source": "shakespeare"})
                 ids.append(f"text_{i+j}")
             
