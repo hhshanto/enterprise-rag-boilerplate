@@ -2,6 +2,5 @@ Steps.md
 __pycache__/
 *.py[cod]
 *$py.class
-data/
 .env
 .venv/
