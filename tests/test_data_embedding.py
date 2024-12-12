@@ -1,99 +1,156 @@
 import os
 import unittest
 import chromadb
-from chromadb.utils import embedding_functions
-from dotenv import load_dotenv
+import shutil
 import logging
+from dotenv import load_dotenv
+from embedding.data_embedding import DataEmbedding
+from datasets import load_from_disk
 
-# Disable ChromaDB logging to keep test output clean
+# Disable ChromaDB logging during tests
 logging.getLogger('chromadb').setLevel(logging.ERROR)
 
 class TestDataEmbedding(unittest.TestCase):
-    def setUp(self):
-        """Set up test environment before each test method"""
+    @classmethod
+    def setUpClass(cls):
+        """Set up test environment once before all test methods"""
+        # Load environment variables
         load_dotenv()
         
-        # Initialize paths
-        self.root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        self.embedding_dir = os.path.join(self.root_dir, 'data', 'embedding')
-        self.huggingface_token = os.getenv('HuggingAccessToken')
+        # Clean up any existing embedding directory
+        cls.root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        cls.embedding_dir = os.path.join(cls.root_dir, 'data', 'embedding')
+        if os.path.exists(cls.embedding_dir):
+            shutil.rmtree(cls.embedding_dir)
         
-        if not self.huggingface_token:
-            raise ValueError("HuggingAccessToken not found in environment variables")
+        # Initialize the embedder
+        cls.data_embedder = DataEmbedding()
+        cls.data_dir = cls.data_embedder.data_dir
         
-        # Initialize ChromaDB client
-        self.client = chromadb.PersistentClient(path=self.embedding_dir)
-        
-        # Initialize embedding function
-        self.embedding_function = embedding_functions.HuggingFaceEmbeddingFunction(
-            api_key=self.huggingface_token,
-            model_name="sentence-transformers/all-mpnet-base-v2"
-        )
+        # Run embedding process
+        cls.data_embedder.embed_text_corpus()
 
-    def test_embedding_directory_exists(self):
-        """Test if embedding directory exists"""
+    def setUp(self):
+        """Set up for each test"""
+        self.client = self.data_embedder.client
+
+    def test_initialization(self):
+        """Test if the DataEmbedding class initializes correctly"""
+        self.assertIsNotNone(self.data_embedder.huggingface_token)
+        self.assertIsNotNone(self.data_embedder.client)
+        self.assertIsNotNone(self.data_embedder.embedding_function)
+        # Check if it's using the correct model type without accessing model_name
         self.assertTrue(
-            os.path.exists(self.embedding_dir), 
-            "Embedding directory not found"
+            isinstance(self.data_embedder.embedding_function, 
+                      chromadb.utils.embedding_functions.HuggingFaceEmbeddingFunction)
         )
 
-    def test_text_collection_exists(self):
-        """Test if text embeddings collection exists"""
-        try:
-            collection = self.client.get_collection("text_embeddings")
-            self.assertIsNotNone(collection, "Text embeddings collection not found")
-        except Exception as e:
-            self.fail(f"Failed to get text embeddings collection: {str(e)}")
+    def test_directory_structure(self):
+        """Test if all required directories exist"""
+        self.assertTrue(os.path.exists(self.root_dir), "Root directory not found")
+        self.assertTrue(os.path.exists(self.data_dir), "Data directory not found")
+        self.assertTrue(os.path.exists(self.embedding_dir), "Embedding directory not found")
 
-    def test_text_collection_not_empty(self):
-        """Test if text embeddings collection contains documents"""
-        collection = self.client.get_collection("text_embeddings")
-        result = collection.count()
-        self.assertGreater(result, 0, "Text embeddings collection is empty")
+    def test_data_loading(self):
+        """Test if the text corpus can be loaded"""
+        text_dataset = load_from_disk(os.path.join(self.data_dir, 'text_corpus'))
+        self.assertIsNotNone(text_dataset)
+        self.assertGreater(len(text_dataset), 0)
 
-    def test_text_embedding_query(self):
-        """Test if text embeddings can be queried"""
-        collection = self.client.get_collection("text_embeddings")
-        
-        # Test simple query
-        results = collection.query(
-            query_texts=["Shakespeare"],
-            n_results=1
+    def test_collection_creation(self):
+        """Test if ChromaDB collection is created correctly"""
+        collections = self.client.list_collections()
+        collection_names = [col.name for col in collections]
+        self.assertIn("text_embeddings", collection_names)
+
+    def test_embedding_storage(self):
+        """Test if embeddings are stored correctly"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
         )
-        
-        self.assertTrue(len(results['ids']) > 0, "No results found in text embeddings")
-        self.assertTrue(len(results['documents']) > 0, "No documents returned in query results")
-        self.assertTrue(len(results['metadatas']) > 0, "No metadata returned in query results")
+        count = collection.count()
+        self.assertGreater(count, 0, "No embeddings stored in collection")
 
-    def test_metadata_content(self):
-        """Test if metadata contains expected fields"""
-        collection = self.client.get_collection("text_embeddings")
+    def test_metadata_structure(self):
+        """Test if metadata is stored correctly"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
+        )
         results = collection.query(
             query_texts=["test"],
             n_results=1
         )
-        
-        self.assertTrue(results['metadatas'], "No metadata found")
-        self.assertEqual(
-            results['metadatas'][0].get('source'), 
-            "shakespeare",
-            "Incorrect or missing source in metadata"
-        )
+        self.assertTrue(len(results['metadatas']) > 0)
+        # Access the first metadata item correctly
+        self.assertEqual(results['metadatas'][0][0]['source'], "shakespeare")
 
-    def test_embedding_consistency(self):
-        """Test if multiple queries for the same text return consistent results"""
-        collection = self.client.get_collection("text_embeddings")
-        
-        # Perform same query twice
-        query_text = "test"
-        results1 = collection.query(query_texts=[query_text], n_results=1)
-        results2 = collection.query(query_texts=[query_text], n_results=1)
-        
-        self.assertEqual(
-            results1['ids'], 
-            results2['ids'], 
-            "Inconsistent results for same query"
+    def test_batch_processing(self):
+        """Test if batch processing works correctly"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
         )
+        
+        # Test multiple queries at once
+        results = collection.query(
+            query_texts=["love", "hate", "joy"],
+            n_results=1
+        )
+        self.assertEqual(len(results['ids']), 3)
+        self.assertEqual(len(results['documents']), 3)
+        self.assertEqual(len(results['metadatas']), 3)
+
+    def test_id_format(self):
+        """Test if document IDs are formatted correctly"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
+        )
+        results = collection.query(
+            query_texts=["test"],
+            n_results=1
+        )
+        self.assertRegex(results['ids'][0][0], r'^text_\d+$')
+
+    def test_semantic_search(self):
+        """Test if semantic search returns relevant results"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
+        )
+        
+        # Test semantic similarity
+        results = collection.query(
+            query_texts=["love"],
+            n_results=1
+        )
+        
+        # Verify we get results
+        self.assertTrue(len(results['documents']) > 0)
+        self.assertTrue(isinstance(results['documents'][0][0], str))
+
+    def test_error_handling(self):
+        """Test error handling for invalid queries"""
+        collection = self.client.get_collection(
+            name="text_embeddings",
+            embedding_function=self.data_embedder.embedding_function
+        )
+        
+        # Test empty query
+        with self.assertRaises(Exception):
+            collection.query(query_texts=[], n_results=1)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up after all tests"""
+        try:
+            # Clean up the embedding directory
+            if os.path.exists(cls.embedding_dir):
+                shutil.rmtree(cls.embedding_dir)
+        except Exception as e:
+            print(f"Warning: Failed to clean up embedding directory: {e}")
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
