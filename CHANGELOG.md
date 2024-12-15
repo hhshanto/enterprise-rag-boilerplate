@@ -24,17 +24,17 @@ All notable changes to this project will be documented in this file.
   - Established directory structure: data/, data_ingestion/, embedding/, tests/, deployment/, monitoring/
   - Created main.py as the entry point
   - Added requirements.txt for dependency management
+  - Optimization of embedding generation process (Batch Process applied)
 
 ### In Progress
-- Optimization of embedding generation process
-- Expansion of test coverage
-
-### TODO
 - Implement retrieval mechanism:
   - Develop query processing system
   - Implement vector similarity search using ChromaDB
   - Create ranking system for retrieved documents
   - Integrate retrieval system with existing data and embedding pipeline
+
+### TODO
+
 - Implement comprehensive error handling and logging
 - Develop deployment scripts and configurations
 - Create user documentation and API references

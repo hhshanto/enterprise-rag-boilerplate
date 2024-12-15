@@ -1,0 +1,110 @@
+
+=== Analyzing Question-Answer Dataset (SQuAD) ===
+
+1. Basic Information:
+Number of rows: 1000
+Size in memory: 0.97 MB
+
+2. Features (Column Types):
+id: Value(dtype='string', id=None)
+title: Value(dtype='string', id=None)
+context: Value(dtype='string', id=None)
+question: Value(dtype='string', id=None)
+answers: Sequence(feature={'text': Value(dtype='string', id=None), 'answer_start': Value(dtype='int32', id=None)}, length=-1, id=None)
+
+3. Dataset Info:
+Description: 
+Citation: ...
+
+4. Arrow Schema:
+id: string
+title: string
+context: string
+question: string
+answers: struct<text: list<item: string>, answer_start: list<item: int32>>
+  child 0, text: list<item: string>
+      child 0, item: string
+  child 1, answer_start: list<item: int32>
+      child 0, item: int32
+-- schema metadata --
+huggingface: '{"info": {"features": {"id": {"dtype": "string", "_type": "' + 307
+
+5. Sample Record:
+{
+  "id": "5733be284776f41900661182",
+  "title": "University_of_Notre_Dame",
+  "context": "Architecturally, the school has a Catholic character. Atop the Main Building's gold dome is a golden statue of the Virgin Mary. Immediately in front of the Main Building and facing it, is a copper statue of Christ with arms upraised with the legend \"Venite Ad Me Omnes\". Next to the Main Building is the Basilica of the Sacred Heart. Immediately behind the basilica is the Grotto, a Marian place of prayer and reflection. It is a replica of the grotto at Lourdes, France where the Virgin Mary reputedly appeared to Saint Bernadette Soubirous in 1858. At the end of the main drive (and in a direct line that connects through 3 statues and the Gold Dome), is a simple, modern stone statue of Mary.",
+  "question": "To whom did the Virgin Mary allegedly appear in 1858 in Lourdes France?",
+  "answers": {
+    "text": [
+      "Saint Bernadette Soubirous"
+    ],
+    "answer_start": [
+      515
+    ]
+  }
+}
+
+=== Analyzing Text Corpus Dataset (Shakespeare) ===
+
+1. Basic Information:
+Number of rows: 1
+Size in memory: 0.96 MB
+
+2. Features (Column Types):
+text: Value(dtype='string', id=None)
+
+3. Dataset Info:
+Description: 40,000 lines of Shakespeare from a variety of Shakespeare's plays. Featured in Andrej Karpathy's blog post 'The Unreasonable Effectiveness of Recurrent Neural Networks': http://karpathy.github.io/2015/05/21/rnn-effectiveness/.
+
+To use for e.g. character modelling:
+
+```
+d = datasets.load_dataset(name='tiny_shakespeare')['train']
+d = d.map(lambda x: datasets.Value('strings').unicode_split(x['text'], 'UTF-8'))
+# train split includes vocabulary for other splits
+vocabulary = sorted(set(next(iter(d)).numpy()))
+d = d.map(lambda x: {'cur_char': x[:-1], 'next_char': x[1:]})
+d = d.unbatch()
+seq_len = 100
+batch_size = 2
+d = d.batch(seq_len)
+d = d.batch(batch_size)
+```
+
+Citation: @misc{
+  author={Karpathy, Andrej},
+  title={char-rnn},
+  year={2015},
+  howpublished={\url{https://github.com/karpathy/char-rnn}}
+}...
+
+4. Arrow Schema:
+text: string
+-- schema metadata --
+huggingface: '{"info": {"features": {"text": {"dtype": "string", "_type":' + 12
+
+5. Sample Record:
+{
+  "text": "First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?\n\nAll:\nResolved. resolved.\n\nFirst Citizen:\nFirst, you know Caius Marcius is chief enemy to the people.\n\nAll:\nWe know't, we know't.\n\nFirst Citizen:\nLet us kill him, and we'll have corn at our own price.\nIs't a verdict?\n\nAll:\nNo more talking on't; let it be done: away, away!\n\nSecond Citizen:\nOne word, good citizens.\n\nFirst Citizen:\nWe are accounted poor... [truncated]"
+}
+
+Total word count in sample: 87
+
+6. Text Corpus Analysis:
+Total word count: 182499
+Total character count: 1003854
+Total line count: 35526
+Unique word count: 23841
+
+Top 10 most common words:
+the: 4947
+I: 3879
+to: 3563
+and: 3270
+of: 3018
+my: 2396
+a: 2303
+in: 1886
+you: 1840
+that: 1660

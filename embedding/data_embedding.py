@@ -49,7 +49,7 @@ class DataEmbedding:
         )
         
         logger.info("Embedding text corpus...")
-        batch_size = 100
+        batch_size = 50  
         for i in range(0, len(text_dataset), batch_size):
             batch = text_dataset[i:i + batch_size]
             
