@@ -1,18 +1,31 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from data_ingestion.data_ingestion import DataIngestion
+from embedding.data_embedding import DataEmbedding
+from retrieval.retrieval import Retrieval
+import chromadb
 
-app = FastAPI()
+def main():
+    # Data Ingestion
+    data_ingestion = DataIngestion()
+    data_ingestion.download_datasets()
 
-class Query(BaseModel):
-    text: str
+    # Data Embedding
+    data_embedding = DataEmbedding()
+    data_embedding.embed_text_corpus()
 
-def preprocess_query(query_text):
-    # Implement preprocessing logic here
-    preprocessed_text = query_text.lower()  # Example preprocessing
-    return preprocessed_text
+    # Retrieval
+    client = chromadb.Client()
+    collection = client.get_or_create_collection("my_collection")
+    retrieval = Retrieval("sentence-transformers/all-mpnet-base-v2", collection)
 
-@app.post("/query")
-async def handle_query(query: Query):
-    preprocessed_text = preprocess_query(query.text)
-    # Proceed to the retrieval layer with the preprocessed query
-    return {"preprocessed_query": preprocessed_text}
+    # Example usage
+    query = "What is the meaning of life?"
+    results = retrieval.search(query)
+    ranked_results = retrieval.rank_results(results)
+
+    for result in ranked_results:
+        print(f"Document: {result['document'][:100]}...")
+        print(f"Distance: {result['distance']}")
+        print("---")
+
+if __name__ == "__main__":
+    main()

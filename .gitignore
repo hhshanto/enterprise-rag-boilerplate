@@ -4,3 +4,5 @@ __pycache__/
 *$py.class
 .env
 .venv/
+*.data/embedding/
+data/embedding/
