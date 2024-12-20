@@ -6,3 +6,5 @@ __pycache__/
 .venv/
 *.data/embedding/
 data/embedding/
+test_ragData/
+test_embedding/
