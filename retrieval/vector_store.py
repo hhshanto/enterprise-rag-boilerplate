@@ -1,28 +1,77 @@
 import os
 import chromadb
-from chromadb.utils import embedding_functions
 from typing import List, Dict, Any
 import logging
+from openai import AzureOpenAI
+from dotenv import load_dotenv
 
+load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+class AzureOpenAIEmbeddingFunction:
+    """Custom embedding function for Azure OpenAI."""
+    
+    def __init__(self):
+        """Initialize Azure OpenAI client."""
+        self.client = AzureOpenAI(
+            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
+            api_version=os.getenv('AZURE_OPENAI_API_VERSION'),
+            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT')
+        )
+        self.deployment_name = os.getenv('AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME')
+
+    def __call__(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings for given texts using Azure OpenAI.
+        
+        Args:
+            texts (List[str]): List of texts to generate embeddings for
+            
+        Returns:
+            List[List[float]]: List of embeddings
+        """
+        try:
+            # Process texts in batches to handle API limits
+            embeddings = []
+            for text in texts:
+                response = self.client.embeddings.create(
+                    input=text,
+                    model=self.deployment_name
+                )
+                embeddings.append(response.data[0].embedding)
+            return embeddings
+        except Exception as e:
+            logger.error(f"Error generating embeddings: {str(e)}")
+            raise
+
 class VectorStore:
+    """A vector store implementation using ChromaDB with Azure OpenAI embeddings."""
+
     def __init__(self, collection_name: str = "my_collection"):
+        """Initialize the vector store with Azure OpenAI embeddings.
+        
+        Args:
+            collection_name (str): Name of the collection to create or load
+        """
         root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         embedding_dir = os.path.join(root_dir, 'data', 'embedding')
         os.makedirs(embedding_dir, exist_ok=True)
 
         self.client = chromadb.PersistentClient(path=embedding_dir)
-        self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="sentence-transformers/all-mpnet-base-v2"
-        )
+        self.embedding_function = AzureOpenAIEmbeddingFunction()
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
             embedding_function=self.embedding_function
         )
 
     def add_documents(self, documents: List[str], ids: List[str], metadatas: List[Dict] = None):
+        """Add documents to the vector store.
+
+        Args:
+            documents (List[str]): List of document texts to add
+            ids (List[str]): Unique identifiers for each document
+            metadatas (List[Dict], optional): Metadata for each document. Defaults to None.
+        """
         logger.info(f"Adding {len(documents)} documents to the vector store")
         self.collection.add(
             documents=documents,
@@ -31,6 +80,15 @@ class VectorStore:
         )
 
     def search(self, query: str, k: int = 5) -> Dict[str, Any]:
+        """Search for similar documents using a query string.
+
+        Args:
+            query (str): The search query text
+            k (int, optional): Number of results to return. Defaults to 5.
+
+        Returns:
+            Dict[str, Any]: Raw search results from ChromaDB containing ids, documents, and distances
+        """
         logger.info(f"Searching for query: {query}")
         results = self.collection.query(
             query_texts=[query],
@@ -39,6 +97,15 @@ class VectorStore:
         return results
 
     def format_results(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Format the raw ChromaDB search results into a more readable format.
+
+        Args:
+            results (Dict[str, Any]): Raw search results from ChromaDB
+
+        Returns:
+            List[Dict[str, Any]]: List of dictionaries containing formatted results with
+                                 'id', 'document', and 'distance' keys
+        """
         formatted_results = []
         for i in range(len(results['ids'][0])):
             formatted_results.append({
@@ -49,6 +116,10 @@ class VectorStore:
         return formatted_results
 
 def test_vector_store():
+    """Test function demonstrating the usage of VectorStore class.
+    
+    Creates a test collection, adds sample documents, and performs a search operation.
+    """
     vector_store = VectorStore("test_collection")
     vector_store.add_documents(
         documents=["This is a test document", "Another test document", "A third test document"],

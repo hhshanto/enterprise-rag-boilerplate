@@ -1,3 +1,11 @@
+"""
+Data Ingestion Module
+
+This module provides functionality to download datasets from Hugging Face
+and save them locally for the RAG system. It downloads a question-answer dataset
+(SQuAD subset) and a text corpus dataset (tiny_shakespeare).
+"""
+
 import os
 import logging
 from datasets import load_dataset
@@ -15,6 +23,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def download_datasets():
+    """
+    Download datasets from Hugging Face Hub and save them locally.
+    
+    This function:
+    1. Authenticates with Hugging Face using an access token
+    2. Downloads a subset of the SQuAD dataset (1000 examples)
+    3. Downloads the tiny_shakespeare dataset
+    4. Saves both datasets to disk
+    5. Verifies the datasets were saved correctly
+    
+    Returns:
+    -------
+    bool
+        True if datasets were successfully downloaded and saved, False otherwise
+    """
     try:
         # Login to Hugging Face using environment variable
         huggingface_token = os.getenv('HuggingAccessToken')
@@ -61,7 +84,17 @@ def download_datasets():
         return False
 
 def verify_datasets(data_dir):
-    """Verify that datasets were saved correctly"""
+    """
+    Verify that datasets were saved correctly to disk.
+    
+    Parameters:
+    ----------
+    data_dir : str
+        Path to the directory containing the saved datasets
+        
+    This function loads the saved datasets from disk and displays
+    basic information about them to verify they were saved correctly.
+    """
     from datasets import load_from_disk
     
     # Verify question-answer dataset

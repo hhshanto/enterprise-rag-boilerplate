@@ -2,6 +2,12 @@ from datasets import load_from_disk
 import os
 
 def read_datasets():
+    """
+    Read and inspect datasets from disk.
+    
+    This function loads the question-answer dataset and the text corpus dataset from disk,
+    prints their structure, and displays a few examples from each dataset.
+    """
     # Path to your data
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'ragData'))
     qa_path = os.path.join(base_dir, 'question_answer')

@@ -5,12 +5,32 @@ from typing import List, Dict
 import pandas as pd
 
 class QAExtractor:
+    """
+    A class to extract question-answer pairs from a dataset and save them in various formats.
+    
+    Attributes:
+    ----------
+    base_dir : str
+        The base directory where the data is stored.
+    qa_path : str
+        The path to the question-answer dataset.
+    """
     def __init__(self):
+        """
+        Initializes the QAExtractor with the base directory and dataset path.
+        """
         self.base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'ragData'))
         self.qa_path = os.path.join(self.base_dir, 'question_answer')
         
     def extract_qa_pairs(self) -> List[Dict]:
-        """Extract question-answer pairs from the dataset"""
+        """
+        Extract question-answer pairs from the dataset.
+        
+        Returns:
+        -------
+        List[Dict]
+            A list of dictionaries, each containing a question, its answer, context, and title.
+        """
         dataset = load_from_disk(self.qa_path)
         
         qa_pairs = []
@@ -26,7 +46,19 @@ class QAExtractor:
         return qa_pairs
     
     def save_qa_pairs(self, format: str = 'json'):
-        """Save QA pairs in specified format"""
+        """
+        Save QA pairs in the specified format.
+        
+        Parameters:
+        ----------
+        format : str, optional
+            The format to save the QA pairs in ('json' or 'csv'). Default is 'json'.
+        
+        Returns:
+        -------
+        List[Dict]
+            The list of extracted QA pairs.
+        """
         qa_pairs = self.extract_qa_pairs()
         
         # Create evaluation directory if it doesn't exist
@@ -57,7 +89,14 @@ class QAExtractor:
         return qa_pairs
     
     def print_sample_pairs(self, n: int = 5):
-        """Print sample QA pairs"""
+        """
+        Print sample QA pairs.
+        
+        Parameters:
+        ----------
+        n : int, optional
+            The number of sample pairs to print. Default is 5.
+        """
         qa_pairs = self.extract_qa_pairs()
         print(f"\n=== Sample of {n} QA Pairs ===")
         for i, pair in enumerate(qa_pairs[:n], 1):
@@ -68,6 +107,9 @@ class QAExtractor:
             print(f"Context: {pair['context'][:200]}...")
 
 def main():
+    """
+    The main function to execute the QA extraction and saving process.
+    """
     extractor = QAExtractor()
     
     # Print dataset structure first
